@@ -32,7 +32,7 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v2
       with:
-        path: test
+        path: test1
         
     # Login to GitHub Packages
     - name: Docker login
