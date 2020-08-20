@@ -1,0 +1,104 @@
+# This is a basic workflow to help you get started with Actions
+
+name: CI image testing
+
+# Controls when the action will run. Triggers the workflow on push or pull request
+# events but only for the master branch
+on:
+  workflow_dispatch:
+    inputs:
+      CONTAINER_NAME:
+        description: Container name
+        default: 543.12
+      AWS_BUCKET_NAME:
+        description: AWS bucket name having dump files
+        required: true
+        default: library-reports
+      AWS_BUCKET_PATH:
+        description: Dump files path
+        required: true
+        default: vinay/
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  build:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+    # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it 
+    - name: Checkout
+      uses: actions/checkout@v2
+      with:
+        path: test
+        
+    # Login to GitHub Packages
+    - name: Docker login
+      run: docker login docker.pkg.github.com -u $GITHUB_ACTOR -p $GITHUB_TOKEN
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Pull Docker image
+      run: docker pull "docker.pkg.github.com/vinpathak/qwerty/postgres:1.0.0"
+    
+    - name: Create container
+      run: docker run --name ${{ github.event.inputs.CONTAINER_NAME }}
+           -e POSTGRES_PASSWORD=$POSTGRES_PASSWORD -d docker.pkg.github.com/vinpathak/qwerty/postgres:1.0.0
+      env:
+        POSTGRES_PASSWORD: postgres
+    
+    - name: Verify container
+      run: docker ps
+    
+    - name: Fetch postgres container IP
+      run: |
+        postgres_container_ip=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' ${{ github.event.inputs.CONTAINER_NAME }})
+        echo "::set-env name=POSTGRES_CONTAINER_IP::$postgres_container_ip"
+        echo $POSTGRES_CONTAINER_IP
+    
+    - name: Verify ENV vars
+      run: echo $POSTGRES_CONTAINER_IP
+    
+    - name: Verify
+      run: echo Container IP is $POSTGRES_CONTAINER_IP
+      env:
+        POSTGRES_CONTAINER_IP: $POSTGRES_CONTAINER_IP
+    
+    - name: Verifying dir
+      run: |
+        echo $GITHUB_WORKSPACE
+        echo $CONTENT
+      env:
+        CONTENT: $GITHUB_WORKSPACE/master/
+    
+    - name: Verify the workspace URI
+      run: echo $GITHUB_WORKSPACE
+    
+    - name: Verify Python, pip and aws-cli version
+      run: |
+        python --version
+        pip --version
+        aws --version
+    
+    - name: Fetch S3 objects
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ap-south-1
+    
+    - name: Run command
+      run: |
+        aws s3 cp s3://${{ github.event.inputs.AWS_BUCKET_NAME }}/${{ github.event.inputs.AWS_BUCKET_PATH }} /home/runner/work/db-files --recursive --exclude "vinay1" --exclude "docker-kubernetes-virtual-machine-microsoft-sql-server-big-data-ship-container.jpg"
+        ls -la /home/runner/work/
+        ls -la /home/runner/work/db-files/
+    
+    - name: checkkk
+      run: ls -la /home/runner/work/db-files/
+    
+    - name: Check GitHub secrets
+      run: echo $BOT fetched
+      env:
+        BOT: ${{ secrets.BOT }}
